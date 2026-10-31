@@ -829,6 +829,25 @@ button:disabled {
   }
 }
 
+.editing-map-panel {
+  position: sticky;
+  align-self: start;
+  min-height: 0;
+}
+
+.editing-map-panel .canvas-frame {
+  container-type: size;
+  place-items: center;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.editing-map-panel .canvas-frame canvas {
+  width: min(100cqw, calc(100cqh * 1100 / 1900));
+  height: auto;
+  max-height: 100%;
+}
+
 .play-style-control {
   display: grid;
   gap: 8px;

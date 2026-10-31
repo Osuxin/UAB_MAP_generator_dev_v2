@@ -100,6 +100,9 @@ const detailConfigFields: { key: ConfigKey; label: string; step: number; min: nu
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
+  const mapPanelRef = useRef<HTMLElement | null>(null);
+  const mobileActionBarRef = useRef<HTMLDivElement | null>(null);
+  const mobileEditBarRef = useRef<HTMLDivElement | null>(null);
   const [config, setConfig] = useState<GeneratorConfig>(defaultGeneratorConfig);
   const scoreTuningFields = [...TACTICAL_FIELDS].sort(
     (a, b) => config[a.priorityKey] - config[b.priorityKey],
@@ -115,6 +118,30 @@ export function App() {
   const [selectedBarrierId, setSelectedBarrierId] = useState<string | null>(null);
   const [selectedVertexIndex, setSelectedVertexIndex] = useState(0);
   const [addShape, setAddShape] = useState<ShapeType>("triangle");
+  const [editViewport, setEditViewport] = useState({ top: 14, height: 600 });
+
+  useEffect(() => {
+    if (!editMode) return;
+    const updateViewport = () => {
+      const top = (mobileActionBarRef.current?.getBoundingClientRect().height ?? 0) + 14;
+      const bottom = (mobileEditBarRef.current?.getBoundingClientRect().height ?? 0) + 14;
+      const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+      setEditViewport({ top, height: Math.max(1, viewportHeight - top - bottom) });
+    };
+    const observer = new ResizeObserver(updateViewport);
+    if (mobileActionBarRef.current) observer.observe(mobileActionBarRef.current);
+    if (mobileEditBarRef.current) observer.observe(mobileEditBarRef.current);
+    window.addEventListener("resize", updateViewport);
+    window.visualViewport?.addEventListener("resize", updateViewport);
+    updateViewport();
+    const frame = requestAnimationFrame(() => mapPanelRef.current?.scrollIntoView({ block: "start" }));
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      window.removeEventListener("resize", updateViewport);
+      window.visualViewport?.removeEventListener("resize", updateViewport);
+    };
+  }, [editMode]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -453,7 +480,7 @@ export function App() {
         </div>
       </header>
 
-      <div className="mobile-action-bar">
+      <div className="mobile-action-bar" ref={mobileActionBarRef}>
         <button
           className="menu-button mobile-menu-action"
           type="button"
@@ -702,7 +729,12 @@ export function App() {
           </div>
         </aside>
 
-        <section className="map-panel" aria-label="生成マッププレビュー">
+        <section
+          ref={mapPanelRef}
+          className={`map-panel${editMode ? " editing-map-panel" : ""}`}
+          style={editMode ? { height: editViewport.height, top: editViewport.top, scrollMarginTop: editViewport.top } : undefined}
+          aria-label="生成マッププレビュー"
+        >
           <div className="map-toolbar">
             <div>
               <h2>{generated.name}</h2>
@@ -739,7 +771,7 @@ export function App() {
       </section>
 
       {editMode && (
-        <div className="mobile-edit-bar">
+        <div className="mobile-edit-bar" ref={mobileEditBarRef}>
           <div className="mobile-edit-status">
             <strong>{selectedBarrier() ? getShapeLabel(selectedBarrier()!.shape) : "未選択"}</strong>
             {selectedBarrier() && (
