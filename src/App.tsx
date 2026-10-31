@@ -473,7 +473,7 @@ export function App() {
           PNG保存
         </button>
         <button className={`secondary-button mobile-edit-action ${editMode ? "active-button" : ""}`} type="button" onClick={() => setEditMode((value) => !value)} disabled={isGenerating}>
-          編集{editMode ? "ON" : "OFF"}
+          編集{editMode ? "OFF" : "ON"}
         </button>
       </div>
 
@@ -592,7 +592,7 @@ export function App() {
                 <p>マップ上のバリケードをクリックして選択します。</p>
               </div>
               <button className="secondary-button compact-button" type="button" onClick={() => setEditMode((value) => !value)}>
-                {editMode ? "ON" : "OFF"}
+                {editMode ? "OFF" : "ON"}
               </button>
             </div>
             {editMode && (
