@@ -9,12 +9,15 @@ import {
   rebuildBarrier,
   refreshGeneratedMap,
   startBoxSizeForField,
+  startPointsForField,
   type Barrier,
   type GeneratedMap,
   type GeneratorConfig,
   type Point,
   type ShapeType,
 } from "./mapGenerator";
+import { TACTICAL_FIELDS, styleSettings, styleLabel } from "./tacticalSettings";
+import { generateMapInWorker } from "./generateMapClient";
 import "./styles.css";
 
 const CANVAS_WIDTH = 1100;
@@ -57,20 +60,11 @@ type ImportedBarrier = {
 
 type ScoreTuningField = {
   key: ConfigKey;
-  importanceKey: ConfigKey;
   label: string;
   low: string;
   mid: string;
   high: string;
 };
-
-const IMPORTANCE_OPTIONS = [
-  { value: 1, label: "1 低い" },
-  { value: 2, label: "2 やや低い" },
-  { value: 3, label: "3 標準" },
-  { value: 4, label: "4 高い" },
-  { value: 5, label: "5 最優先" },
-];
 
 const ADD_SHAPE_OPTIONS: ShapeType[] = ["triangle", "trapezoid", "diamond", "large_triangle"];
 
@@ -103,78 +97,16 @@ const detailConfigFields: { key: ConfigKey; label: string; step: number; min: nu
   { key: "maxAttempts", label: "最大試行回数", step: 50, min: 50, max: 3000 },
 ];
 
-const scoreTuningFields: ScoreTuningField[] = [
-  {
-    key: "safetyWeight",
-    importanceKey: "safetyImportance",
-    label: "ブレイク",
-    low: "初動リスクを許容",
-    mid: "標準的な初動安全",
-    high: "最初の一手をかなり安全に",
-  },
-  {
-    key: "centralAccessWeight",
-    importanceKey: "centralAccessImportance",
-    label: "上がりやすさ",
-    low: "中央に入りにくい",
-    mid: "上がりやすさは標準",
-    high: "中央に入りやすい",
-  },
-  {
-    key: "sideBalanceWeight",
-    importanceKey: "sideBalanceImportance",
-    label: "左右バランス",
-    low: "左右差を許容",
-    mid: "左右差は標準",
-    high: "左右差を少なくする",
-  },
-  {
-    key: "lineOfSightWeight",
-    importanceKey: "lineOfSightImportance",
-    label: "射線制御",
-    low: "長い射線を許容",
-    mid: "射線制御は標準",
-    high: "長い射線を抑える",
-  },
-  {
-    key: "densityWeight",
-    importanceKey: "densityImportance",
-    label: "バリケ間距離",
-    low: "バリケード間隔を広めにする",
-    mid: "標準的な間隔にする",
-    high: "バリケード間隔を詰める",
-  },
-  {
-    key: "routeWeight",
-    importanceKey: "routeImportance",
-    label: "到達性",
-    low: "入りにくいバリケードも許容",
-    mid: "標準的な到達性",
-    high: "各バリケードへ入りやすくする",
-  },
-  {
-    key: "centralStrengthWeight",
-    importanceKey: "centralStrengthImportance",
-    label: "中央の密度",
-    low: "中央を薄めにする",
-    mid: "中央を標準密度にする",
-    high: "中央を厚めにする",
-  },
-];
-
-const basicTuningFields = scoreTuningFields.filter((field) =>
-  ["safetyWeight", "centralAccessWeight", "densityWeight", "centralStrengthWeight"].includes(field.key),
-);
-
-const detailTuningFields = scoreTuningFields.filter((field) =>
-  ["sideBalanceWeight", "lineOfSightWeight", "routeWeight"].includes(field.key),
-);
+const scoreTuningFields = TACTICAL_FIELDS;
 
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [config, setConfig] = useState<GeneratorConfig>(defaultGeneratorConfig);
-  const [generated, setGenerated] = useState<GeneratedMap>(() => generateMap(defaultGeneratorConfig));
+  const [generated, setGenerated] = useState<GeneratedMap>(() => {
+    const initial = generateMap({ ...defaultGeneratorConfig, minScore: 0 });
+    return { ...initial, accepted: initial.evaluation.score >= defaultGeneratorConfig.minScore };
+  });
   const [error, setError] = useState<string | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -216,6 +148,10 @@ export function App() {
 
   function updateConfig(key: ConfigKey, value: number) {
     setConfig((current) => ({ ...current, [key]: value }));
+  }
+
+  function updatePlayStyle(value: number) {
+    setConfig(current => ({ ...current, ...styleSettings(value) }));
   }
 
   function selectedFieldPreset(): string {
@@ -266,7 +202,7 @@ export function App() {
     setError(null);
     await new Promise((resolve) => window.setTimeout(resolve, 30));
     try {
-      const next = generateMap(config);
+      const next = await generateMapInWorker(config);
       setGenerated(next);
       setSelectedBarrierId(null);
       setError(null);
@@ -358,7 +294,7 @@ export function App() {
         fieldHeight: field.height / SCENARIO_SCALE,
         gridSize: field.gridSize / SCENARIO_SCALE,
       };
-      const base = generateMap(nextConfig);
+      const base = { ...generated, field: { ...generated.field, width: nextConfig.fieldWidth, height: nextConfig.fieldHeight, gridSize: nextConfig.gridSize, ...startPointsForField(nextConfig.fieldWidth, nextConfig.fieldHeight) } };
       const barriers = field.barriers
         .map((barrier) => importBarrier(barrier, nextConfig.fieldWidth))
         .filter((barrier): barrier is Barrier => barrier !== null);
@@ -553,7 +489,7 @@ export function App() {
           <div className="score-settings">
             <div>
               <h2>基本設定</h2>
-              <p>普段はここだけ調整すれば生成できます。スライダーは点数ではなく、作りたいマップの傾向です。</p>
+              <p>個別のパラメータは詳細設定から調整できます。</p>
             </div>
             <div className="settings-grid">
               <label className="input-row">
@@ -566,20 +502,6 @@ export function App() {
                   ))}
                 </select>
               </label>
-              {basicConfigFields.map((field) => (
-                <label className="input-row" key={field.key}>
-                  <span>{field.label}</span>
-                  <input
-                    type="number"
-                    min={field.min}
-                    max={field.max}
-                    step={field.step}
-                    value={config[field.key]}
-                    onChange={(event) => handleConfigNumberChange(field.key, event)}
-                    onBlur={(event) => handleConfigNumberBlur(field.key, event, field.step, field.min, field.max)}
-                  />
-                </label>
-              ))}
               <div className="json-actions">
                 <button className="secondary-button" type="button" onClick={() => importInputRef.current?.click()}>
                   JSON読込
@@ -595,48 +517,57 @@ export function App() {
                 />
               </div>
             </div>
-            <div className="tuning-list">
-              {basicTuningFields.map((field) => (
-                <label className="tuning-row" key={field.key}>
-                  <span className="tuning-head">
-                    <span>{field.label}</span>
-                    <strong>{config[field.key]}</strong>
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={1}
-                    value={config[field.key]}
-                    onChange={(event) => handleConfigNumberChange(field.key, event)}
-                  />
-                  <span className="tuning-foot">
-                    <span>{tuningText(field, Number(config[field.key]))}</span>
-                    <input
-                      type="number"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={config[field.key]}
-                      onChange={(event) => handleConfigNumberChange(field.key, event)}
-                      onBlur={(event) => handleConfigNumberBlur(field.key, event, 1, 0, 100)}
-                    />
-                  </span>
-                  <span className="importance-inline">
-                    <span>重要度</span>
-                    <select
-                      value={importanceLevel(Number(config[field.importanceKey]))}
-                      onChange={(event) => updateConfig(field.importanceKey, importanceValueFromLevel(Number(event.target.value)))}
-                    >
-                      {IMPORTANCE_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  </span>
-                </label>
-              ))}
+            <div className="play-style-control">
+              <label className="play-style-axis" htmlFor="play-style">
+                <span>攻め</span>
+                <span>守り</span>
+              </label>
+              <input
+                id="play-style"
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={config.playStyle}
+                onChange={event => updatePlayStyle(Number(event.target.value))}
+                disabled={isGenerating}
+                aria-label="攻め・守り"
+                aria-valuetext={styleLabel(config.playStyle)}
+                aria-describedby="play-style-help"
+              />
+              <p id="play-style-help">{styleLabel(config.playStyle)}：変更すると6項目をまとめて設定します。「生成」でマップに反映します。</p>
+              <details className="detail-settings">
+                <summary>詳細設定</summary>
+                <div className="score-settings nested">
+                  <div>
+                    <h2>サブパラメータ</h2>
+                    <p>各スライダーで目指す傾向を調整します。6項目は同じ重みで評価します。攻め・守りを動かすと6項目をまとめて再設定します。</p>
+                  </div>
+                  <div className="tuning-list">
+                    {scoreTuningFields.map((field) => (
+                      <div className="tuning-row" key={field.key}>
+                        <span className="tuning-head">
+                          <span>{field.label}</span>
+                          <strong>{config[field.key]}</strong>
+                        </span>
+                        <span className="parameter-description">{field.description}</span>
+                        <input
+                          aria-label={field.label}
+                          type="range"
+                          min={0}
+                          max={100}
+                          step={1}
+                          value={config[field.key]}
+                          onChange={(event) => handleConfigNumberChange(field.key, event)}
+                        />
+                        <span className="tuning-foot">
+                          <span>{tuningText(field, Number(config[field.key]))}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </details>
             </div>
           </div>
 
@@ -696,8 +627,22 @@ export function App() {
           </div>
 
           <details className="detail-settings">
-            <summary>詳細設定</summary>
+            <summary>マップ・生成設定</summary>
             <div className="settings-grid">
+              {basicConfigFields.map((field) => (
+                <label className="input-row" key={field.key}>
+                  <span>{field.label}</span>
+                  <input
+                    type="number"
+                    min={field.min}
+                    max={field.max}
+                    step={field.step}
+                    value={config[field.key]}
+                    onChange={(event) => handleConfigNumberChange(field.key, event)}
+                    onBlur={(event) => handleConfigNumberBlur(field.key, event, field.step, field.min, field.max)}
+                  />
+                </label>
+              ))}
               {detailConfigFields.map((field) => (
                 <label className="input-row" key={field.key}>
                   <span>{field.label}</span>
@@ -713,55 +658,7 @@ export function App() {
                 </label>
               ))}
             </div>
-            <div className="score-settings nested">
-              <div>
-                <h2>補助傾向</h2>
-                <p>必要なときだけ調整します。重要度は各スライダーの直下で選べます。</p>
-              </div>
-              <div className="tuning-list">
-                {detailTuningFields.map((field) => (
-                  <label className="tuning-row" key={field.key}>
-                    <span className="tuning-head">
-                      <span>{field.label}</span>
-                      <strong>{config[field.key]}</strong>
-                    </span>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      step={1}
-                      value={config[field.key]}
-                      onChange={(event) => handleConfigNumberChange(field.key, event)}
-                    />
-                    <span className="tuning-foot">
-                      <span>{tuningText(field, Number(config[field.key]))}</span>
-                      <input
-                        type="number"
-                        min={0}
-                        max={100}
-                        step={1}
-                        value={config[field.key]}
-                        onChange={(event) => handleConfigNumberChange(field.key, event)}
-                        onBlur={(event) => handleConfigNumberBlur(field.key, event, 1, 0, 100)}
-                      />
-                    </span>
-                    <span className="importance-inline">
-                      <span>重要度</span>
-                      <select
-                        value={importanceLevel(Number(config[field.importanceKey]))}
-                        onChange={(event) => updateConfig(field.importanceKey, importanceValueFromLevel(Number(event.target.value)))}
-                      >
-                        {IMPORTANCE_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
+
           </details>
 
           {error && <p className="error-message">{error}</p>}
@@ -778,6 +675,7 @@ export function App() {
           <div className="summary-panel">
             <p>{generated.accepted ? "採用条件を満たしています。" : `採用スコア ${config.minScore} に未達です。`}</p>
             <h2>生成結果</h2>
+            <p>各指標は生成済みマップの特徴（0〜100）です。設定一致度とは異なります。基本3対3・左右からの射撃で評価します。</p>
             <p>採用までの試行: {generated.attempt}回</p>
             <p>バリケード数: {generated.barriers.length}個</p>
             <div className="shape-counts">
@@ -870,18 +768,6 @@ function tuningText(field: ScoreTuningField, value: number): string {
   if (value <= 33) return field.low;
   if (value <= 66) return field.mid;
   return field.high;
-}
-
-function importanceLevel(value: number): number {
-  if (value <= 8) return 1;
-  if (value <= 12) return 2;
-  if (value <= 18) return 3;
-  if (value <= 28) return 4;
-  return 5;
-}
-
-function importanceValueFromLevel(level: number): number {
-  return [0, 6, 12, 18, 30, 50][level] ?? 18;
 }
 
 function exportBarrier(barrier: Barrier, fieldWidth: number): ImportedBarrier {
