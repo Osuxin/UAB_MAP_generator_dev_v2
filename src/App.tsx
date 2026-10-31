@@ -16,7 +16,7 @@ import {
   type Point,
   type ShapeType,
 } from "./mapGenerator";
-import { TACTICAL_FIELDS, styleSettings, styleLabel } from "./tacticalSettings";
+import { TACTICAL_FIELDS, PRIORITY_OPTIONS, styleSettings, styleLabel } from "./tacticalSettings";
 import { generateMapInWorker } from "./generateMapClient";
 import "./styles.css";
 
@@ -97,12 +97,13 @@ const detailConfigFields: { key: ConfigKey; label: string; step: number; min: nu
   { key: "maxAttempts", label: "最大試行回数", step: 50, min: 50, max: 3000 },
 ];
 
-const scoreTuningFields = TACTICAL_FIELDS;
-
 export function App() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const importInputRef = useRef<HTMLInputElement | null>(null);
   const [config, setConfig] = useState<GeneratorConfig>(defaultGeneratorConfig);
+  const scoreTuningFields = [...TACTICAL_FIELDS].sort(
+    (a, b) => config[a.priorityKey] - config[b.priorityKey],
+  );
   const [generated, setGenerated] = useState<GeneratedMap>(() => {
     const initial = generateMap({ ...defaultGeneratorConfig, minScore: 0 });
     return { ...initial, accepted: initial.evaluation.score >= defaultGeneratorConfig.minScore };
@@ -541,7 +542,7 @@ export function App() {
                 <div className="score-settings nested">
                   <div>
                     <h2>サブパラメータ</h2>
-                    <p>各スライダーで目指す傾向を調整します。6項目は同じ重みで評価します。攻め・守りを動かすと6項目をまとめて再設定します。</p>
+                    <p>スライダーで目指す傾向、優先度でどれだけ重視するかを設定します（1〜6、小さいほど優先、1が最優先）。攻め・守りを動かしても優先度は維持されます。「生成」で反映します。</p>
                   </div>
                   <div className="tuning-list">
                     {scoreTuningFields.map((field) => (
@@ -563,6 +564,19 @@ export function App() {
                         <span className="tuning-foot">
                           <span>{tuningText(field, Number(config[field.key]))}</span>
                         </span>
+                        <label className="priority-row">
+                          <span>優先度</span>
+                          <select
+                            aria-label={field.label + "の優先度"}
+                            value={config[field.priorityKey]}
+                            disabled={isGenerating}
+                            onChange={event => updateConfig(field.priorityKey, Number(event.target.value))}
+                          >
+                            {PRIORITY_OPTIONS.map(option => (
+                              <option key={option.value} value={option.value}>{option.label}</option>
+                            ))}
+                          </select>
+                        </label>
                       </div>
                     ))}
                   </div>

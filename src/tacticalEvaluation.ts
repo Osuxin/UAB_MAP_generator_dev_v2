@@ -221,7 +221,10 @@ export function evaluateTactics(field: Field, barriers: Barrier[], config: Tacti
   });
   const values = Object.fromEntries(TACTICAL_FIELDS.map(({ key }) => [key, mean(teamResults.map(r => r[key]))])) as TacticalValues;
   const playable = plans.every(plan => plan.initial.length > 0 && plan.routes.some(route => !route.initial));
-  const score = playable ? Math.round(mean(TACTICAL_FIELDS.map(f => 100 - Math.abs(values[f.key] - config[f.key])))) : 0;
+  // Priority 1 has the greatest influence; priority 6 has the least.
+  const totalWeight = TACTICAL_FIELDS.reduce((sum, f) => sum + (7 - config[f.priorityKey]), 0);
+  const score = playable && totalWeight > 0 ? Math.round(TACTICAL_FIELDS.reduce((sum, f) =>
+    sum + (100 - Math.abs(values[f.key] - config[f.key])) * (7 - config[f.priorityKey]), 0) / totalWeight) : 0;
   const round = (n: number) => Math.round(n * 10) / 10;
   return { score, details: Object.fromEntries(TACTICAL_FIELDS.map(f => [f.label, round(values[f.key])])),
     diagnostics: { forwardCross: round(mean(teamResults.map(r => r.forwardCross))), rearCross: round(mean(teamResults.map(r => r.rearCross))),

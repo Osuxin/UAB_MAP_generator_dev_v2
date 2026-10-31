@@ -861,3 +861,24 @@ button:disabled {
 }
 
 .parameter-description { color: #607482; font-size: 12px; line-height: 1.5; }
+
+.priority-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #e4e9ed;
+  padding-top: 8px;
+  color: #405568;
+  font-size: 13px;
+  font-weight: 700;
+}
+.priority-row select {
+  min-width: 100px;
+  min-height: 34px;
+  padding: 6px 8px;
+  border: 1px solid #bccbd3;
+  border-radius: 6px;
+  background: #fff;
+  color: #172834;
+}

@@ -115,7 +115,7 @@ test('generation worker returns successful maps and validation failures', async 
  } finally { await worker.terminate(); }
 });
 
-test('all six metrics always contribute equally, ignoring legacy importance values', () => seeded(() => {
+test('default priorities contribute equally, ignoring legacy importance values', () => seeded(() => {
  const config={...m.defaultGeneratorConfig,minScore:0,maxAttempts:50};
  const map=m.generateMap(config);
  const result=m.evaluateMap(map.field,map.barriers,config);
@@ -162,3 +162,34 @@ test('break slider uses opening firing exposure and contributes to matching inde
  assert.ok(matched.score>opposite.score);
  assert.ok(m.validateConfig({...config,breakPressure:101}));
 }));
+
+test('priority changes matching influence but preserves map metrics and survives main slider changes', () => seeded(() => {
+ const config={...m.defaultGeneratorConfig,minScore:0,maxAttempts:50};
+ const map=m.generateMap(config);
+ const actual=map.evaluation.details['ブレイク'];
+ const base={...config,breakPressure:actual>=50?0:100};
+ const low={...base,breakPressurePriority:6}, high={...base,breakPressurePriority:1};
+ const a=m.evaluateMap(map.field,map.barriers,low), b=m.evaluateMap(map.field,map.barriers,high);
+ assert.deepEqual(a.details,b.details);
+ for(const [result,cfg] of [[a,low],[b,high]]) {
+   const weight=m.TACTICAL_FIELDS.reduce((sum,f)=>sum+(7-cfg[f.priorityKey]),0);
+   const expected=m.TACTICAL_FIELDS.reduce((sum,f)=>sum+(100-Math.abs(result.details[f.label]-cfg[f.key]))*(7-cfg[f.priorityKey]),0)/weight;
+   assert.ok(Math.abs(result.score-expected)<=0.55);
+ }
+ assert.ok(b.score<a.score);
+ const changed={...high,...m.styleSettings(100)};
+ assert.equal(changed.breakPressurePriority,1);
+ assert.equal(changed.breakPressure,75);
+ assert.ok(m.validateConfig({...config,advancePriority:0}));
+ assert.ok(m.validateConfig({...config,crossPriority:NaN}));
+ assert.equal(m.validateConfig({...config,retakePriority:4}),null);
+}));
+
+test('priority accepts all six integer levels and rejects values outside the scale', () => {
+ assert.deepEqual(m.PRIORITY_OPTIONS.map(o=>o.value),[1,2,3,4,5,6]);
+ for(const field of m.TACTICAL_FIELDS) {
+   assert.equal(m.defaultGeneratorConfig[field.priorityKey],3);
+   for(const value of [1,2,3,4,5,6]) assert.equal(m.validateConfig({...m.defaultGeneratorConfig,[field.priorityKey]:value}),null);
+   for(const value of [0,7,2.5,NaN]) assert.ok(m.validateConfig({...m.defaultGeneratorConfig,[field.priorityKey]:value}));
+ }
+});

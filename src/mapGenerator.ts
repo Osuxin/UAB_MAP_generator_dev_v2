@@ -1,5 +1,5 @@
 import { evaluateTactics } from "./tacticalEvaluation";
-import { styleSettings, TACTICAL_FIELDS, type TacticalConfig } from "./tacticalSettings";
+import { styleSettings, defaultPriorities, PRIORITY_OPTIONS, TACTICAL_FIELDS, type TacticalConfig } from "./tacticalSettings";
 
 export type ShapeType = "triangle" | "trapezoid" | "diamond" | "large_triangle";
 
@@ -80,6 +80,7 @@ export const defaultGeneratorConfig: GeneratorConfig = {
   minScore: 70,
   maxAttempts: 500,
   ...styleSettings(50),
+  ...defaultPriorities,
 };
 
 export function validateConfig(config: GeneratorConfig): string | null {
@@ -106,6 +107,7 @@ export function validateConfig(config: GeneratorConfig): string | null {
   if (Object.values(config).some(value => !Number.isFinite(value))) return "設定値は有限の数値にしてください。";
   if (config.playStyle < 0 || config.playStyle > 100) return "攻め・守りは0から100の範囲にしてください。";
   if (TACTICAL_FIELDS.some(f => config[f.key] < 0 || config[f.key] > 100)) return "サブパラメータは0から100の範囲にしてください。";
+  if (TACTICAL_FIELDS.some(f => !PRIORITY_OPTIONS.some(option => option.value === config[f.priorityKey]))) return "優先度は1から6の整数で選択してください。";
   return null;
 }
 
