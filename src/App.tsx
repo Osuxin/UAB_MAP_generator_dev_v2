@@ -1007,7 +1007,7 @@ function barrierWithinOuterField(barrier: Barrier, field: GeneratedMap["field"])
 }
 
 function pointWithinPlacementBounds(point: Point, field: GeneratedMap["field"]): boolean {
-  return point.x >= 0.5 && point.y >= 1.5 && point.x <= field.width - 0.5 && point.y <= field.height - 1.5;
+  return point.x >= 0.5 && point.y >= 0.5 && point.x <= field.width - 0.5 && point.y <= field.height - 0.5;
 }
 
 function fitMovedBarrierToPlacementBounds(
@@ -1021,8 +1021,8 @@ function fitMovedBarrierToPlacementBounds(
   let y = barrier.y;
   if (dx < 0 && bounds.minX < 0.5) x += 0.5 - bounds.minX;
   if (dx > 0 && bounds.maxX > field.width - 0.5) x -= bounds.maxX - (field.width - 0.5);
-  if (dy < 0 && bounds.minY < 1.5) y += 1.5 - bounds.minY;
-  if (dy > 0 && bounds.maxY > field.height - 1.5) y -= bounds.maxY - (field.height - 1.5);
+  if (dy < 0 && bounds.minY < 0.5) y += 0.5 - bounds.minY;
+  if (dy > 0 && bounds.maxY > field.height - 0.5) y -= bounds.maxY - (field.height - 0.5);
   return x === barrier.x && y === barrier.y ? barrier : rebuildBarrier(barrier, x, y, barrier.angle);
 }
 
