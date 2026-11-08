@@ -829,10 +829,20 @@ button:disabled {
   }
 }
 
+.editing-layout .score-block,
+.editing-layout .map-toolbar {
+  display: none;
+}
+
 .editing-map-panel {
   position: sticky;
+  top: 14px;
+  scroll-margin-top: 14px;
   align-self: start;
   min-height: 0;
+  height: calc(100vh - 28px);
+  height: calc(100dvh - 28px);
+  grid-template-rows: minmax(0, 1fr);
 }
 
 .editing-map-panel .canvas-frame {
@@ -846,6 +856,37 @@ button:disabled {
   width: min(100cqw, calc(100cqh * 1100 / 1900));
   height: auto;
   max-height: 100%;
+}
+
+@media (max-width: 720px) {
+  .editing-layout {
+    position: fixed;
+    inset: 0 0 auto;
+    min-height: 0;
+    height: 100vh;
+    height: 100dvh;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .editing-layout .app-header {
+    display: none;
+  }
+
+  .editing-layout .mobile-action-bar,
+  .editing-layout .mobile-edit-bar {
+    position: static;
+  }
+
+  .editing-layout .mobile-action-bar {
+    grid-template-columns: 42px repeat(3, minmax(0, 1fr));
+    grid-template-areas: "menu generate save edit";
+  }
+
+  .editing-map-panel {
+    position: static;
+    align-self: stretch;
+    height: auto;
+  }
 }
 
 .play-style-control {
