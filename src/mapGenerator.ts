@@ -56,8 +56,6 @@ export type GeneratedMap = {
 const UNIT_SIDE = 0.9;
 const SQRT3 = Math.sqrt(3);
 const PLACEMENT_GAP = 1.0;
-const EDGE_CLEARANCE_X = 0.5;
-const EDGE_CLEARANCE_Y = 0.5;
 const DEFAULT_START_BOX_WIDTH = 2;
 const DEFAULT_START_BOX_HEIGHT = 1;
 const START_BOX_CLEARANCE = 0.5;
@@ -281,7 +279,12 @@ export function barrierClearsStartBoxes(field: GeneratedMap["field"], barrier: B
 }
 
 export function barrierWithinPlacementBounds(field: GeneratedMap["field"], barrier: Barrier): boolean {
-  return polygonInsidePlacementBounds(field, barrier.polygon);
+  // Allow for rounding when moving, rotating, or mirroring a barrier at the edge.
+  const tolerance = 1e-9;
+  return barrier.polygon.every((point) =>
+    point.x >= -tolerance && point.x <= field.width + tolerance &&
+    point.y >= -tolerance && point.y <= field.height + tolerance,
+  );
 }
 
 export function startBoxSizeForField(width: number, height: number): { width: number; height: number } {
@@ -502,16 +505,6 @@ function pointInPolygon(point: Point, polygon: Point[]): boolean {
     }
   }
   return inside;
-}
-
-function polygonInsidePlacementBounds(field: GeneratedMap["field"], polygon: Point[]): boolean {
-  return polygon.every(
-    (point) =>
-      point.x >= EDGE_CLEARANCE_X &&
-      point.y >= EDGE_CLEARANCE_Y &&
-      point.x <= field.width - EDGE_CLEARANCE_X &&
-      point.y <= field.height - EDGE_CLEARANCE_Y,
-  );
 }
 
 function nearestGridPoint(field: GeneratedMap["field"], point: Point): Point {

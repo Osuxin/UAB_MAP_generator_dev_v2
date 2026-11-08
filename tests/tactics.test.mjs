@@ -7,6 +7,15 @@ const field = {width:8,height:18,gridSize:0.5,bottomStart:{x:4,y:0.5},topStart:{
 function box(id,x,y,w=1,h=1) { return {id,shape:'diamond',x:x+w/2,y:y+h/2,angle:0,seams:[],polygon:[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}]}; }
 function seeded(fn) { const saved = Math.random; let seed = 1234; Math.random = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296); try { return fn(); } finally { Math.random = saved; } }
 
+test('barriers may touch all four field edges but may not extend past them', () => {
+ for (const [x, y] of [[0, 0], [field.width - 1, field.height - 1]]) {
+   assert.equal(m.barrierWithinPlacementBounds(field, box('edge', x, y)), true);
+ }
+ for (const [x, y] of [[-0.01, 2], [field.width - 0.99, 2], [2, -0.01], [2, field.height - 0.99]]) {
+   assert.equal(m.barrierWithinPlacementBounds(field, box('outside', x, y)), false);
+ }
+});
+
 test('points depend on opponent-side Y rows, not X; touching players each count', () => {
  const barriers=[box('center',3.5,8.5),box('left',0,9.5),box('right',6,9.7),box('deep',3,12),box('own',3,4)];
  const points=m.aggressivePoints(field,barriers,1);
