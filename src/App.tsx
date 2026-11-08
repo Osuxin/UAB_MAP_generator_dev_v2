@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FocusEvent, type MouseEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ChangeEvent, type FocusEvent, type MouseEvent } from "react";
 import {
   defaultGeneratorConfig,
   barrierClearsStartBoxes,
@@ -122,11 +122,11 @@ export function App() {
     }
   }, [editMode]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    drawMap(canvas, generated, selectedBarrierId, selectedVertexIndex);
-  }, [generated, selectedBarrierId, selectedVertexIndex]);
+    drawMap(canvas, generated, editMode ? selectedBarrierId : null, selectedVertexIndex);
+  }, [editMode, generated, selectedBarrierId, selectedVertexIndex]);
 
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
@@ -739,6 +739,7 @@ export function App() {
               </div>
             )}
             <canvas
+              key={editMode ? "edit" : "preview"}
               ref={canvasRef}
               width={CANVAS_WIDTH}
               height={CANVAS_HEIGHT}
