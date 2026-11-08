@@ -321,6 +321,16 @@ export function App() {
     }
   }
 
+  function toggleEditMode() {
+    setEditMode(!editMode);
+    if (editMode) {
+      setSelectedBarrierId(null);
+      setSelectedVertexIndex(0);
+    } else {
+      setSettingsOpen(false);
+    }
+  }
+
   function updateEditedBarriers(nextBarriers: Barrier[], nextSelectedId = selectedBarrierId) {
     setGenerated((current) => refreshGeneratedMap(current, config, nextBarriers));
     setSelectedBarrierId(nextSelectedId);
@@ -469,7 +479,7 @@ export function App() {
         <button className="secondary-button mobile-save-action" type="button" onClick={handleDownload} disabled={isGenerating}>
           PNG保存
         </button>
-        <button className={`secondary-button mobile-edit-action ${editMode ? "active-button" : ""}`} type="button" onClick={() => setEditMode((value) => !value)} disabled={isGenerating}>
+        <button className={`secondary-button mobile-edit-action ${editMode ? "active-button" : ""}`} type="button" onClick={toggleEditMode} disabled={isGenerating}>
           編集{editMode ? "OFF" : "ON"}
         </button>
       </div>
@@ -588,10 +598,7 @@ export function App() {
                 <h2>編集モード</h2>
                 <p>マップ上のバリケードをクリックして選択します。</p>
               </div>
-              <button className="secondary-button compact-button" type="button" onClick={() => {
-                setEditMode(!editMode);
-                if (!editMode) setSettingsOpen(false);
-              }}>
+              <button className="secondary-button compact-button" type="button" onClick={toggleEditMode}>
                 {editMode ? "OFF" : "ON"}
               </button>
             </div>
