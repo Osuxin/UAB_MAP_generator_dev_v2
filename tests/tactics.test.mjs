@@ -84,6 +84,10 @@ test('generated maps have six finite metrics, preserve counts and rotate symmetr
  const config={...m.defaultGeneratorConfig,minScore:0,maxAttempts:50};
  const map=m.generateMap(config);
  assert.equal(map.barriers.length,10);
+ for (const {x, y} of map.barriers.flatMap(barrier => barrier.polygon)) {
+   assert.ok(x >= 0.5 - 1e-9 && x <= map.field.width - 0.5 + 1e-9);
+   assert.ok(y >= 1 - 1e-9 && y <= map.field.height - 1 + 1e-9);
+ }
  assert.equal(Object.keys(map.evaluation.details).length,6);
  Object.values(map.evaluation.details).forEach(value=>assert.ok(Number.isFinite(value) && value>=0 && value<=100));
  const attack=m.evaluateMap(map.field,map.barriers,{...config,...m.styleSettings(0)});

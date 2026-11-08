@@ -56,6 +56,9 @@ export type GeneratedMap = {
 const UNIT_SIDE = 0.9;
 const SQRT3 = Math.sqrt(3);
 const PLACEMENT_GAP = 1.0;
+const GENERATION_EDGE_CLEARANCE_X = 0.5;
+const GENERATION_EDGE_CLEARANCE_Y = 1;
+const PLACEMENT_TOLERANCE = 1e-9;
 const DEFAULT_START_BOX_WIDTH = 2;
 const DEFAULT_START_BOX_HEIGHT = 1;
 const START_BOX_CLEARANCE = 0.5;
@@ -280,10 +283,9 @@ export function barrierClearsStartBoxes(field: GeneratedMap["field"], barrier: B
 
 export function barrierWithinPlacementBounds(field: GeneratedMap["field"], barrier: Barrier): boolean {
   // Allow for rounding when moving, rotating, or mirroring a barrier at the edge.
-  const tolerance = 1e-9;
   return barrier.polygon.every((point) =>
-    point.x >= -tolerance && point.x <= field.width + tolerance &&
-    point.y >= -tolerance && point.y <= field.height + tolerance,
+    point.x >= -PLACEMENT_TOLERANCE && point.x <= field.width + PLACEMENT_TOLERANCE &&
+    point.y >= -PLACEMENT_TOLERANCE && point.y <= field.height + PLACEMENT_TOLERANCE,
   );
 }
 
@@ -391,7 +393,11 @@ function isValidPair(field: GeneratedMap["field"], pair: Barrier[], existing: Ba
 }
 
 function isValidPlacement(field: GeneratedMap["field"], candidate: Barrier, existing: Barrier[]): boolean {
-  if (!barrierWithinPlacementBounds(field, candidate)) return false;
+  const insetX = GENERATION_EDGE_CLEARANCE_X - PLACEMENT_TOLERANCE;
+  const insetY = GENERATION_EDGE_CLEARANCE_Y - PLACEMENT_TOLERANCE;
+  if (!candidate.polygon.every(({ x, y }) =>
+    x >= insetX && x <= field.width - insetX && y >= insetY && y <= field.height - insetY,
+  )) return false;
   if (!barrierClearsStartBoxes(field, candidate)) return false;
   if (candidate.polygon.some((point) => distance(point, field.bottomStart) < 0.35 || distance(point, field.topStart) < 0.35)) return false;
   if (pointInPolygon(field.bottomStart, candidate.polygon) || pointInPolygon(field.topStart, candidate.polygon)) return false;
